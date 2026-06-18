@@ -297,7 +297,10 @@ final class ReactionManager: ObservableObject {
         )
         window.isReleasedWhenClosed = false
         window.level                = NSWindow.Level(rawValue: NSWindow.Level.screenSaver.rawValue + 1)
-        
+        // Follow the user across Spaces / Mission Control, like the ward overlay.
+        window.collectionBehavior   = [.canJoinAllSpaces, .stationary,
+                                       .fullScreenAuxiliary, .ignoresCycle, .transient]
+
         // Dynamically set opacity based on pack style to let the Metal shader show through in minimal mode
         if pack.style == .minimal {
             window.isOpaque         = false

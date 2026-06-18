@@ -364,6 +364,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, NSMenu
         window.backgroundColor      = .black
         window.hasShadow            = false
 
+        // CRITICAL for Spaces / Mission Control: without canJoinAllSpaces the ward
+        // lives on ONE Space, so a three-finger swipe (switch Space) or Mission
+        // Control reveals the bare desktop behind it. canJoinAllSpaces makes the
+        // overlay follow the user to every Space; stationary keeps it pinned;
+        // fullScreenAuxiliary lets it sit over full-screen apps. .transient +
+        // ignoresCycle keep it out of Cmd+Tab / window cycling.
+        window.collectionBehavior = [.canJoinAllSpaces, .stationary,
+                                     .fullScreenAuxiliary, .ignoresCycle, .transient]
+
         let metalView = MetalOverlayView(frame: screenFrame)
         window.contentView = metalView
 
@@ -610,6 +619,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, NSMenu
             w.backgroundColor      = .black
             w.hasShadow            = false
             w.ignoresMouseEvents   = true
+            w.collectionBehavior   = [.canJoinAllSpaces, .stationary,
+                                      .fullScreenAuxiliary, .ignoresCycle, .transient]
             w.makeKeyAndOrderFront(nil)
             inputLockManager?.registerSecondaryOverlay(CGWindowID(w.windowNumber))
             secondaryOverlayWindows.append(w)
@@ -624,11 +635,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, NSMenu
         stopWardWatchdog()
         watchdogReraiseCount = 0
         // 0.5 s cadence: fast enough to re-raise within the window the user would
-        // notice, slow enough to be negligible cost. Runs on the main run loop.
-        let timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+        // notice, slow enough to be negligible cost.
+        let timer = Timer(timeInterval: 0.5, repeats: true) { [weak self] _ in
             self?.watchdogTick()
         }
         timer.tolerance = 0.1
+        // .common modes so the timer keeps firing during Mission Control / Spaces
+        // gestures and other event-tracking run-loop modes. scheduledTimer would
+        // install it in .default only, which is PAUSED during those gestures —
+        // exactly when we most need to re-raise the ward.
+        RunLoop.main.add(timer, forMode: .common)
         wardWatchdog = timer
     }
 
